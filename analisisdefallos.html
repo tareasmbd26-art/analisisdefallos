@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analizador de Fallos - Sistema de Incendios</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+    :root {
+        /* Colores */
+        --color-primary: #2196F3;
+        --color-primary-dark: #1976D2;
+        --color-primary-darker: #0D47A1;
+        --color-success: #4CAF50;
+        --color-success-dark: #388E3C;
+        --color-warning: #FF9800;
+        --color-warning-dark: #F57C00;
+        --color-danger: #F44336;
+        --color-danger-dark: #D32F2F;
+        --color-bg-light: #f8f9fa;
+        --color-bg-alt: #e3f2fd;
+        --color-border: #e9ecef;
+        --color-text: #333;
+        --color-text-secondary: #666;
+        --color-text-light: #E3F2FD;
+        --color-white: #fff;
+
+        /* Sombra */
+        --shadow-light: 0 5px 15px rgba(0, 0, 0, 0.1);
+        --shadow-hover: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --color-primary: #42A5F5;
+            --color-primary-dark: #1E88E5;
+            --color-primary-darker: #1565C0;
+            --color-bg-light: #121212;
+            --color-bg-alt: #1a237e;
+            --color-border: #333;
+            --color-text: #E0E0E0;
+            --color-text-secondary: #BDBDBD;
+            --color-white: #212121;
+        }
+        body { background: #121212; }
+        .container { background: #1e1e1e; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+        .header { background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary)); }
+        .controls { background: var(--color-bg-light); border-bottom: 3px solid var(--color-border); }
+        .input-area textarea, .project-input { background: #2a2a2a; color: var(--color-text); border-color: #555; }
+        .stat-card { background: #2a2a2a; border-left: 5px solid var(--color-primary); }
+        table { color: var(--color-text); }
+        th { background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary)); }
+        td { border-bottom: 1px solid #444; }
+        tr:nth-child(even) { background-color: #2a2a2a; }
+        .analisis-select { background-color: #333; color: var(--color-text); border-color: #555; }
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 50%, var(--color-primary-darker) 100%); min-height: 100vh; padding: 20px; color: var(--color-text); }
+    .container { max-width: 1400px; margin: 0 auto; background: var(--color-white); border-radius: 20px; box-shadow: var(--shadow-light); overflow: hidden; }
+    .header { background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary)); color: var(--color-white); padding: 20px 30px; text-align: center; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .header-title { font-size: 2.5em; font-weight: bold; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+    .header h1 { font-size: 2.2em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+    .header p { font-size: 1.1em; color: var(--color-text-light); }
+    .controls { padding: 30px; background: var(--color-bg-light); border-bottom: 3px solid var(--color-border); }
+    .control-group { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+    .btn { padding: 12px 24px; border: none; border-radius: 10px; cursor: pointer; font-size: 1em; font-weight: bold; transition: all 0.3s ease; }
+    .btn-primary { background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark)); color: var(--color-white); }
+    .btn-success { background: linear-gradient(135deg, var(--color-success), var(--color-success-dark)); color: var(--color-white); }
+    .btn-warning { background: linear-gradient(135deg, var(--color-warning), var(--color-warning-dark)); color: var(--color-white); }
+    .btn-danger { background: linear-gradient(135deg, var(--color-danger), var(--color-danger-dark)); color: var(--color-white); }
+    .btn:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
+    .input-area textarea { width: 100%; height: 150px; padding: 15px; border: 3px solid var(--color-border); border-radius: 10px; font-size: 1em; resize: vertical; }
+    .input-area textarea:focus { outline: none; border-color: var(--color-primary); }
+    .file-input { display: none; }
+    .stats { display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap; }
+    .stat-card { background: var(--color-white); padding: 20px; border-radius: 15px; text-align: center; flex-grow: 1; box-shadow: 0 8px 25px rgba(33, 150, 243, 0.15); border-left: 5px solid var(--color-primary); }
+    .stat-card h3 { color: var(--color-primary-dark); font-size: 2em; }
+    .stat-card p { color: var(--color-text-secondary); font-weight: bold; }
+    .table-container { padding: 30px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
+    th { background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary)); color: var(--color-white); padding: 15px; text-align: left; }
+    td { padding: 8px 15px; border-bottom: 1px solid var(--color-border); vertical-align: middle; word-break: break-word; }
+    tr:nth-child(even) { background-color: var(--color-bg-light); }
+    .analisis-cell { position: relative; }
+    .analisis-select { width: calc(100% - 35px); padding: 8px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.95em; }
+    .delete-btn { background: var(--color-danger); color: var(--color-white); border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; position: absolute; top: 50%; right: 5px; transform: translateY(-50%); font-size: 16px; transition: background-color 0.3s; }
+    .delete-btn:hover { background: var(--color-danger-dark); }
+    .project-info { background: var(--color-bg-alt); padding: 20px; margin-bottom: 20px; border-radius: 10px; border-left: 5px solid var(--color-primary); }
+    .project-input { padding: 8px 12px; border: 2px solid #ddd; border-radius: 6px; margin-left: 10px; }
+    .notification { position: fixed; top: 20px; right: 20px; padding: 15px 25px; background: var(--color-success); color: var(--color-white); border-radius: 10px; box-shadow: var(--shadow-light); transform: translateX(120%); transition: transform 0.4s ease-in-out; z-index: 1000; }
+    .notification.show { transform: translateX(0); }
+    .notification.error { background: var(--color-danger); }
+    
+    /* Estilos para el contenido del PDF */
+    .pdf-content { padding: 20px; font-family: Arial, sans-serif; }
+    .pdf-header { text-align: center; margin-bottom: 20px; }
+    .pdf-title { font-size: 24px; font-weight: bold; color: #1976D2; margin-bottom: 10px; }
+    .pdf-project-info { margin-bottom: 20px; }
+    .pdf-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    .pdf-table th { background-color: #1976D2; color: white; padding: 10px; text-align: left; }
+    .pdf-table td { padding: 8px; border-bottom: 1px solid #ddd; }
+    .pdf-table tr:nth-child(even) { background-color: #f9f9f9; }
+    .pdf-footer { margin-top: 30px; text-align: right; font-style: italic; border-top: 1px solid #ccc; padding-top: 10px; }
+    
+    /* Modal de usuario */
+    .user-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 2000; }
+    .user-modal-content { background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    .user-modal h2 { margin-bottom: 20px; color: var(--color-primary-dark); text-align: center; }
+    .user-input-group { margin-bottom: 20px; }
+    .user-input-group label { display: block; margin-bottom: 8px; font-weight: bold; }
+    .user-input-group input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1em; }
+    .user-input-group input:focus { outline: none; border-color: var(--color-primary); }
+    .user-modal-buttons { display: flex; justify-content: flex-end; gap: 15px; }
+    
+    /* Información de usuario actual */
+    .user-info { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.9); padding: 10px 15px; border-radius: 8px; font-size: 0.9em; box-shadow: 0 3px 10px rgba(0,0,0,0.1); }
+    .user-info span { font-weight: bold; color: var(--color-primary-dark); }
+    .change-user-btn { background: none; border: none; color: var(--color-primary); cursor: pointer; text-decoration: underline; margin-left: 10px; font-size: 0.9em; }
+    
+    /* Selección múltiple */
+    .table-container { position: relative; }
+    .multi-select-controls { position: sticky; top: 0; background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: none; z-index: 100; box-shadow: 0 3px 10px rgba(0,0,0,0.1); }
+    .multi-select-controls.active { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+    .selected-count { font-weight: bold; color: var(--color-primary-dark); }
+    
+    /* Filas seleccionadas */
+    tr.selected { background-color: #e3f2fd !important; outline: 2px solid var(--color-primary); }
+    tr.selected td { position: relative; }
+    tr.selected td::before { content: "✓"; position: absolute; left: 5px; top: 50%; transform: translateY(-50%); color: var(--color-primary); font-weight: bold; }
+    
+    /* Checkbox de selección */
+    .select-checkbox { width: 18px; height: 18px; cursor: pointer; }
+    
+    /* Modal de edición múltiple */
+    .edit-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 2000; }
+    .edit-modal-content { background: white; padding: 30px; border-radius: 15px; width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    .edit-modal h2 { margin-bottom: 20px; color: var(--color-primary-dark); text-align: center; }
+    .edit-modal-select { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1em; margin-bottom: 20px; }
+    .edit-modal-buttons { display: flex; justify-content: flex-end; gap: 15px; }
+</style>
+</head>
+<body>
+<div class="container">
+<header class="header" role="banner">
+<div class="header-title">MDM SECURITIES INC</div>
+<h1>Analizador de Fallos</h1>
+<p>Sistema de Incendios | Análisis automático y gestión eficiente</p>
+</header>
+
+<main class="controls" role="main">
+    <section class="project-info" aria-label="Información del proyecto">
+        <strong>Proyecto:</strong>
+        <input type="text" id="projectName" class="project-input" placeholder="Nombre del proyecto" value="PH PLAZA DEL ESTE">
+        <strong style="margin-left: 20px;">Fecha:</strong>
+        <input type="date" id="projectDate" class="project-input">
+    </section>
+
+    <div class="control-group">
+        <input type="file" id="fileInput" class="file-input" accept=".txt">
+        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">📁 Cargar Archivo</button>
+        <button class="btn btn-success" id="processBtn">⚡ Procesar Fallos</button>
+        <button class="btn btn-warning" id="saveSessionBtn">💾 Guardar Sesión</button>
+        <button class="btn btn-primary" id="loadSessionBtn">📂 Cargar Sesión</button>
+        <button class="btn btn-danger" id="exportPdfBtn">📄 Exportar PDF</button>
+        <button class="btn btn-primary" id="printBtn">🖨️ Imprimir</button>
+        <button class="btn btn-warning" id="clearBtn">🗑️ Limpiar Todo</button>
+    </div>
+
+    <div class="input-area">
+        <textarea id="textInput" placeholder="Pega aquí el texto con los fallos del sistema..."></textarea>
+    </div>
+
+    <section class="stats" aria-label="Estadísticas de fallos">
+        <div class="stat-card">
+            <h3 id="totalFallos">0</h3><p>Total Fallos</p>
+        </div>
+        <div class="stat-card">
+            <h3 id="totalAnalizados">0</h3><p>Analizados</p>
+        </div>
+    </section>
+</main>
+
+<div class="table-container" role="region" aria-labelledby="fallosTableCaption">
+    <div class="multi-select-controls" id="multiSelectControls">
+        <div class="selected-count" id="selectedCount">0 filas seleccionadas</div>
+        <button class="btn btn-primary" id="editSelectedBtn">✏️ Editar seleccionados</button>
+        <button class="btn btn-danger" id="clearSelectionBtn">❌ Limpiar selección</button>
+    </div>
+    
+    <h2 id="fallosTableCaption" style="display: none;">Tabla de fallos detectados</h2>
+    <table id="fallosTable">
+        <thead>
+            <tr>
+                <th style="width: 3%;"></th>
+                <th style="width: 5%;">#</th>
+                <th style="width: 32%;">🚨 UBICACIÓN</th>
+                <th style="width: 30%;">🔧 FALLO DETECTADO</th>
+                <th style="width: 25%;">📝 ANÁLISIS</th>
+                <th style="width: 5%;"></th>
+            </tr>
+        </thead>
+        <tbody id="fallosTableBody">
+        </tbody>
+    </table>
+</div>
+</div>
+
+<div id="notification" class="notification" role="status" aria-live="polite"></div>
+
+<!-- Modal para ingresar usuario -->
+<div id="userModal" class="user-modal">
+    <div class="user-modal-content">
+        <h2>Identificación del Usuario</h2>
+        <div class="user-input-group">
+            <label for="userFirstName">Nombre:</label>
+            <input type="text" id="userFirstName" placeholder="Ingrese su nombre" required>
+        </div>
+        <div class="user-input-group">
+            <label for="userLastName">Apellido:</label>
+            <input type="text" id="userLastName" placeholder="Ingrese su apellido" required>
+        </div>
+        <div class="user-modal-buttons">
+            <button id="saveUserBtn" class="btn btn-primary">Continuar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para edición múltiple -->
+<div id="editModal" class="edit-modal">
+    <div class="edit-modal-content">
+        <h2>Editar análisis seleccionados</h2>
+        <select class="edit-modal-select" id="editModalSelect">
+            <option value="">-- Seleccione un análisis --</option>
+            <option value="Requiere reemplazo">Requiere reemplazo</option>
+            <option value="Reparar circuito">Reparar circuito</option>
+            <option value="Llave cerrada">Llave cerrada</option>
+            <option value="Verificar conexión">Verificar conexión</option>
+            <option value="Requiere inspección técnica">Requiere inspección técnica</option>
+            <option value="custom">-- Agregar nuevo... --</option>
+        </select>
+        <div class="edit-modal-buttons">
+            <button id="cancelEditBtn" class="btn btn-warning">Cancelar</button>
+            <button id="saveEditBtn" class="btn btn-primary">Aplicar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const elements = {
+            projectName: document.getElementById('projectName'),
+            projectDate: document.getElementById('projectDate'),
+            fileInput: document.getElementById('fileInput'),
+            textInput: document.getElementById('textInput'),
+            totalFallos: document.getElementById('totalFallos'),
+            totalAnalizados: document.getElementById('totalAnalizados'),
+            fallosTableBody: document.getElementById('fallosTableBody'),
+            notification: document.getElementById('notification'),
+            userModal: document.getElementById('userModal'),
+            userFirstName: document.getElementById('userFirstName'),
+            userLastName: document.getElementById('userLastName'),
+            saveUserBtn: document.getElementById('saveUserBtn'),
+            multiSelectControls: document.getElementById('multiSelectControls'),
+            selectedCount: document.getElementById('selectedCount'),
+            editSelectedBtn: document.getElementById('editSelectedBtn'),
+            clearSelectionBtn: document.getElementById('clearSelectionBtn'),
+            editModal: document.getElementById('editModal'),
+            editModalSelect: document.getElementById('editModalSelect'),
+            cancelEditBtn: document.getElementById('cancelEditBtn'),
+            saveEditBtn: document.getElementById('saveEditBtn'),
+
+            processBtn: document.getElementById('processBtn'),
+            saveSessionBtn: document.getElementById('saveSessionBtn'),
+            loadSessionBtn: document.getElementById('loadSessionBtn'),
+            exportPdfBtn: document.getElementById('exportPdfBtn'),
+            printBtn: document.getElementById('printBtn'),
+            clearBtn: document.getElementById('clearBtn')
+        };
+
+        let fallosData = [];
+        let standardAnalyses = [
+            "Requiere reemplazo",
+            "Reparar circuito",
+            "Llave cerrada",
+            "Verificar conexión",
+            "Requiere inspección técnica"
+        ];
+        
+        let currentUser = {
+            firstName: '',
+            lastName: ''
+        };
+        
+        let selectedRows = new Set();
+
+        // Verificar si ya existe información de usuario
+        const checkUserInfo = () => {
+            const userData = localStorage.getItem('fallosAnalyzerUser');
+            if (userData) {
+                currentUser = JSON.parse(userData);
+                createUserInfoBar();
+            } else {
+                elements.userModal.style.display = 'flex';
+            }
+        };
+        
+        // Crear barra de información de usuario
+        const createUserInfoBar = () => {
+            // Eliminar barra existente si hay una
+            const existingBar = document.querySelector('.user-info');
+            if (existingBar) {
+                existingBar.remove();
+            }
+            
+            const userInfoBar = document.createElement('div');
+            userInfoBar.className = 'user-info';
+            userInfoBar.innerHTML = `
+                Usuario: <span>${currentUser.firstName} ${currentUser.lastName}</span>
+                <button class="change-user-btn" id="changeUserBtn">Cambiar</button>
+            `;
+            document.body.appendChild(userInfoBar);
+            
+            // Agregar evento al botón de cambiar usuario
+            document.getElementById('changeUserBtn').addEventListener('click', () => {
+                elements.userModal.style.display = 'flex';
+            });
+        };
+
+        const showNotification = (message, type = 'success') => {
+            console.log(`Notification: ${message} (${type})`);
+            elements.notification.textContent = message;
+            elements.notification.className = `notification show ${type === 'error' ? 'error' : ''} ${type === 'warning' ? 'warning' : ''}`;
+            setTimeout(() => { elements.notification.className = 'notification'; }, 3000);
+        };
+
+        const determinarAnalisis = (falloLine, ubicacionLine) => {
+            const falloUpper = falloLine.toUpperCase();
+            const ubicacionUpper = ubicacionLine.toUpperCase();
+
+            if (falloUpper.includes('MISSING')) return "Requiere reemplazo";
+            if (falloUpper.includes('FAULT')) return "Reparar circuito";
+            if (falloUpper.includes('SUPERVISORY')) {
+                if (ubicacionUpper.includes('LLAVE')) return "Llave cerrada";
+                return "Verificar conexión";
+            }
+            return "Requiere inspección técnica";
+        };
+
+        const updateStats = () => {
+            const total = fallosData.length;
+            const analizados = fallosData.filter(f => f.analisis && f.analisis !== 'Requiere inspección técnica').length;
+            elements.totalFallos.textContent = total;
+            elements.totalAnalizados.textContent = analizados;
+        };
+
+        const handleAnalysisChange = (selectElement, index) => {
+            console.log(`Handling analysis change for index ${index}. Current value: ${selectElement.value}`);
+            if (selectElement.value === 'custom') {
+                const newAnalysis = prompt('Ingrese el nuevo análisis:');
+                if (newAnalysis && newAnalysis.trim() !== '') {
+                    if (!standardAnalyses.includes(newAnalysis)) {
+                        standardAnalyses.push(newAnalysis);
+                    }
+                    fallosData[index].analisis = newAnalysis;
+                    updateTable();
+                } else {
+                    selectElement.value = fallosData[index].analisis;
+                }
+            } else {
+                fallosData[index].analisis = selectElement.value;
+            }
+            updateStats();
+            autoSave();
+        };
+
+        const updateTable = () => {
+            console.log('Updating table...');
+            const tbody = elements.fallosTableBody;
+            tbody.innerHTML = '';
+            fallosData.forEach((item, index) => {
+                const row = tbody.insertRow();
+                row.dataset.index = index;
+                const isSelected = selectedRows.has(index);
+                
+                row.innerHTML = `
+                    <td><input type="checkbox" class="select-checkbox" ${isSelected ? 'checked' : ''}></td>
+                    <td>${index + 1}</td>
+                    <td>${item.ubicacion}</td>
+                    <td>${item.fallo}</td>
+                    <td class="analisis-cell">
+                        <select class="analisis-select">
+                            ${standardAnalyses.map(opt =>
+                                `<option value="${opt}" ${item.analisis === opt ? 'selected' : ''}>${opt}</option>`
+                            ).join('')}
+                            ${!standardAnalyses.includes(item.analisis) && item.analisis ? `<option value="${item.analisis}" selected>${item.analisis}</option>` : ''}
+                            <option value="custom">-- Agregar nuevo... --</option>
+                        </select>
+                    </td>
+                    <td>
+                        <button class="delete-btn" aria-label="Eliminar fallo">×</button>
+                    </td>
+                `;
+                
+                const select = row.querySelector('.analisis-select');
+                select.addEventListener('change', (e) => handleAnalysisChange(e.target, index));
+                
+                const deleteBtn = row.querySelector('.delete-btn');
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Evitar que el evento de clic en la fila se dispare
+                    deleteFallo(index);
+                });
+                
+                const checkbox = row.querySelector('.select-checkbox');
+                checkbox.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Evitar que el evento de clic en la fila se dispare
+                    toggleRowSelection(index, checkbox.checked);
+                });
+                
+                // Marcar la fila como seleccionada si corresponde
+                if (isSelected) {
+                    row.classList.add('selected');
+                }
+            });
+            console.log('Table updated.');
+        };
+
+        // Toggle selection for a row
+        const toggleRowSelection = (index, isChecked) => {
+            const row = elements.fallosTableBody.querySelector(`tr[data-index="${index}"]`);
+            
+            if (isChecked) {
+                selectedRows.add(index);
+                row.classList.add('selected');
+            } else {
+                selectedRows.delete(index);
+                row.classList.remove('selected');
+            }
+            updateSelectionUI();
+        };
+
+        // Update selection UI
+        const updateSelectionUI = () => {
+            elements.selectedCount.textContent = `${selectedRows.size} fila(s) seleccionada(s)`;
+            
+            if (selectedRows.size > 0) {
+                elements.multiSelectControls.classList.add('active');
+            } else {
+                elements.multiSelectControls.classList.remove('active');
+            }
+        };
+
+        // Clear selection
+        const clearSelection = () => {
+            selectedRows.forEach(index => {
+                const row = elements.fallosTableBody.querySelector(`tr[data-index="${index}"]`);
+                if (row) {
+                    row.classList.remove('selected');
+                    const checkbox = row.querySelector('.select-checkbox');
+                    if (checkbox) checkbox.checked = false;
+                }
+            });
+            selectedRows.clear();
+            updateSelectionUI();
+        };
+
+        // Edit selected rows
+        const editSelectedRows = () => {
+            if (selectedRows.size === 0) {
+                showNotification('Por favor seleccione al menos una fila para editar', 'error');
+                return;
+            }
+            
+            // Show the modal
+            elements.editModal.style.display = 'flex';
+        };
+
+        // Apply the selected analysis to all selected rows
+        const applyAnalysisToSelected = () => {
+            const selectedAnalysis = elements.editModalSelect.value;
+            
+            if (selectedAnalysis === '') {
+                showNotification('Por favor seleccione un análisis', 'error');
+                return;
+            }
+            
+            if (selectedAnalysis === 'custom') {
+                const newAnalysis = prompt('Ingrese el nuevo análisis:');
+                if (newAnalysis && newAnalysis.trim() !== '') {
+                    if (!standardAnalyses.includes(newAnalysis)) {
+                        standardAnalyses.push(newAnalysis);
+                        // Actualizar el select en el modal
+                        const newOption = document.createElement('option');
+                        newOption.value = newAnalysis;
+                        newOption.textContent = newAnalysis;
+                        elements.editModalSelect.insertBefore(newOption, elements.editModalSelect.lastChild);
+                    }
+                    
+                    selectedRows.forEach(index => {
+                        fallosData[index].analisis = newAnalysis;
+                    });
+                    
+                    updateTable();
+                    showNotification(`Análisis aplicado a ${selectedRows.size} fila(s)`);
+                }
+            } else {
+                selectedRows.forEach(index => {
+                    fallosData[index].analisis = selectedAnalysis;
+                });
+                
+                updateTable();
+                showNotification(`Análisis aplicado a ${selectedRows.size} fila(s)`);
+            }
+            
+            // Close modal and clear selection
+            elements.editModal.style.display = 'none';
+            clearSelection();
+            updateStats();
+            autoSave();
+        };
+
+        const processText = () => {
+            console.log('Processing text...');
+            const text = elements.textInput.value.trim();
+            if (!text) {
+                showNotification('Por favor ingresa el texto con los fallos', 'error');
+                return;
+            }
+
+            const lines = text.split('\n').filter(line => line.trim() !== '');
+            const newFallos = [];
+
+            for (let i = 0; i < lines.length; i += 2) {
+                if (lines[i] && lines[i + 1]) {
+                    const ubicacion = lines[i].trim();
+                    const fallo = lines[i + 1].trim();
+                    newFallos.push({
+                        id: Date.now() + i,
+                        ubicacion: ubicacion,
+                        fallo: fallo,
+                        analisis: determinarAnalisis(fallo, ubicacion)
+                    });
+                }
+            }
+
+            if (newFallos.length === 0) {
+                showNotification('No se encontraron fallos en el formato esperado.', 'error');
+                return;
+            }
+
+            fallosData = [...fallosData, ...newFallos];
+            elements.textInput.value = '';
+            updateUI();
+            showNotification(`Se procesaron ${newFallos.length} fallos.`);
+            console.log('Text processed.');
+        };
+
+        const deleteFallo = (index) => {
+            console.log(`Deleting fallo at index ${index}`);
+            // Si la fila está seleccionada, quitarla de la selección
+            if (selectedRows.has(index)) {
+                selectedRows.delete(index);
+                updateSelectionUI();
+            }
+            
+            fallosData.splice(index, 1);
+            updateUI();
+            showNotification('Fallo eliminado.');
+        };
+
+        const clearAll = () => {
+            console.log('Clearing all data...');
+            if (confirm('¿Estás seguro de que quieres limpiar todos los datos?')) {
+                fallosData = [];
+                sessionStorage.removeItem('fallosDataAutoSave');
+                elements.projectName.value = "PH PLAZA DEL ESTE";
+                elements.projectDate.valueAsDate = new Date();
+                clearSelection();
+                updateUI();
+                showNotification('Todos los datos han sido limpiados.');
+                console.log('All data cleared.');
+            }
+        };
+
+        const getProjectData = () => ({
+            projectName: elements.projectName.value || 'Sin_Proyecto',
+            projectDate: elements.projectDate.value,
+            fallosData: fallosData,
+            standardAnalyses: standardAnalyses
+        });
+
+        const autoSave = () => {
+            try {
+                sessionStorage.setItem('fallosDataAutoSave', JSON.stringify(getProjectData()));
+                console.log('Session auto-saved.');
+            } catch (e) {
+                console.error("Error al guardar automáticamente la sesión:", e);
+            }
+        };
+
+        const saveSession = () => {
+            console.log('Attempting to save session...');
+            if (fallosData.length === 0) {
+                showNotification('No hay datos para guardar', 'error');
+                return;
+            }
+            const data = getProjectData();
+            try {
+                const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${data.projectName}_${data.projectDate || 'sin_fecha'}.json`;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showNotification('Sesión guardada correctamente.');
+                console.log('Session saved successfully.');
+            } catch (e) {
+                console.error("Error al guardar la sesión:", e);
+                showNotification('Error al guardar la sesión.', 'error');
+            }
+        };
+
+        const loadSession = () => {
+            console.log('Attempting to load session...');
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.style.display = 'none';
+            document.body.appendChild(input);
+
+            input.onchange = e => {
+                const file = e.target.files[0];
+                if (!file) {
+                    document.body.removeChild(input);
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = res => {
+                    try {
+                        const data = JSON.parse(res.target.result);
+                        if (data && data.fallosData) {
+                            elements.projectName.value = data.projectName || 'PH PLAZA DEL ESTE';
+                            elements.projectDate.value = data.projectDate || new Date().toISOString().split('T')[0];
+                            fallosData = data.fallosData;
+                            if (data.standardAnalyses) {
+                                standardAnalyses = Array.from(new Set([...standardAnalyses, ...data.standardAnalyses]));
+                            }
+                            updateUI();
+                            showNotification('Sesión cargada correctamente.');
+                            console.log('Session loaded successfully.');
+                        } else {
+                            showNotification('El archivo JSON no contiene datos de sesión válidos.', 'error');
+                            console.error('Invalid session data in JSON file.');
+                        }
+                    } catch (err) {
+                        console.error("Error al leer el archivo JSON:", err);
+                        showNotification('Error al leer el archivo. Asegúrate de que sea un JSON válido.', 'error');
+                    } finally {
+                        document.body.removeChild(input);
+                    }
+                };
+                reader.onerror = (err) => {
+                    console.error("FileReader error:", err);
+                    showNotification('Error al leer el archivo.', 'error');
+                    document.body.removeChild(input);
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+            console.log('File input clicked programmatically.');
+        };
+
+        const loadAutoSavedData = () => {
+            console.log('Attempting to load auto-saved data...');
+            const savedData = sessionStorage.getItem('fallosDataAutoSave');
+            if (savedData) {
+                try {
+                    const data = JSON.parse(savedData);
+                    if (data && data.fallosData) {
+                        elements.projectName.value = data.projectName || 'PH PLAZA DEL ESTE';
+                        elements.projectDate.value = data.projectDate || new Date().toISOString().split('T')[0];
+                        fallosData = data.fallosData;
+                        if (data.standardAnalyses) {
+                            standardAnalyses = Array.from(new Set([...standardAnalyses, ...data.standardAnalyses]));
+                        }
+                        updateUI();
+                        showNotification('Sesión anterior recuperada.');
+                        console.log('Auto-saved session loaded.');
+                    }
+                } catch (e) {
+                    console.error("Error loading autosaved data:", e);
+                }
+            } else {
+                console.log('No auto-saved data found.');
+            }
+        };
+
+        const exportToPDF = () => {
+            console.log('Attempting to export PDF...');
+            if (fallosData.length === 0) {
+                showNotification('No hay datos para exportar a PDF', 'error');
+                return;
+            }
+
+            try {
+                // Crear contenido HTML para el PDF
+                const projectName = elements.projectName.value || 'Sin especificar';
+                const projectDate = elements.projectDate.value || new Date().toISOString().split('T')[0];
+                const formattedDate = new Date(projectDate).toLocaleDateString('es-PA');
+                
+                let tableContent = '';
+                fallosData.forEach((item, index) => {
+                    tableContent += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${item.ubicacion}</td>
+                            <td>${item.fallo}</td>
+                            <td>${item.analisis}</td>
+                        </tr>
+                    `;
+                });
+                
+                const content = `
+                    <div class="pdf-content">
+                        <div class="pdf-header">
+                            <div class="pdf-title">MDM SECURITIES INC</div>
+                        </div>
+                        <div class="pdf-project-info">
+                            <p><strong>Proyecto:</strong> ${projectName}</p>
+                            <p><strong>Fecha:</strong> ${formattedDate}</p>
+                        </div>
+                        <table class="pdf-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Ubicación</th>
+                                    <th>Fallo Detectado</th>
+                                    <th>Análisis</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableContent}
+                            </tbody>
+                        </table>
+                        <div class="pdf-footer">
+                            Generado por: ${currentUser.firstName} ${currentUser.lastName}
+                        </div>
+                    </div>
+                `;
+                
+                // Crear elemento temporal para el contenido del PDF
+                const element = document.createElement('div');
+                element.innerHTML = content;
+                document.body.appendChild(element);
+                
+                // Configuración de html2pdf
+                const opt = {
+                    margin: 10,
+                    filename: `Reporte_${projectName.replace(/\s+/g, '_')}_${projectDate}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2 },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+                
+                // Generar PDF
+                html2pdf().set(opt).from(element).save().then(() => {
+                    document.body.removeChild(element);
+                    showNotification('PDF exportado correctamente.');
+                    console.log('PDF exported successfully.');
+                });
+                
+            } catch (error) {
+                console.error('Error exporting PDF:', error);
+                showNotification('Error al exportar el PDF. Intenta nuevamente.', 'error');
+            }
+        };
+
+        const printContent = () => {
+            window.print();
+        };
+
+        const updateUI = () => {
+            updateTable();
+            updateStats();
+            autoSave();
+        };
+        
+        // Guardar información del usuario
+        const saveUserInfo = () => {
+            const firstName = elements.userFirstName.value.trim();
+            const lastName = elements.userLastName.value.trim();
+            
+            if (!firstName || !lastName) {
+                showNotification('Por favor ingresa tu nombre y apellido', 'error');
+                return;
+            }
+            
+            currentUser = { firstName, lastName };
+            localStorage.setItem('fallosAnalyzerUser', JSON.stringify(currentUser));
+            elements.userModal.style.display = 'none';
+            createUserInfoBar();
+            showNotification('Información de usuario guardada');
+        };
+
+        // Event Listeners
+        elements.fileInput.addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = res => {
+                    elements.textInput.value = res.target.result;
+                    showNotification('Archivo cargado. Haz clic en "Procesar Fallos".');
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        elements.processBtn.addEventListener('click', processText);
+        elements.saveSessionBtn.addEventListener('click', saveSession);
+        elements.loadSessionBtn.addEventListener('click', loadSession);
+        elements.exportPdfBtn.addEventListener('click', exportToPDF);
+        elements.printBtn.addEventListener('click', printContent);
+        elements.clearBtn.addEventListener('click', clearAll);
+        elements.saveUserBtn.addEventListener('click', saveUserInfo);
+        
+        // Multi-select functionality
+        elements.editSelectedBtn.addEventListener('click', editSelectedRows);
+        elements.clearSelectionBtn.addEventListener('click', clearSelection);
+        elements.cancelEditBtn.addEventListener('click', () => {
+            elements.editModal.style.display = 'none';
+        });
+        elements.saveEditBtn.addEventListener('click', applyAnalysisToSelected);
+
+        // Initial setup
+        elements.projectDate.valueAsDate = new Date();
+        checkUserInfo();
+        loadAutoSavedData();
+    });
+</script>
+</body>
+</html>
